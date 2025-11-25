@@ -1,0 +1,22 @@
+{
+  "name": "binx-core",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3",
+    "yargs": "^18.0.0"
+  },
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/yargs": "^17.0.35"
+  }
+}
