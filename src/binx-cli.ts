@@ -16,7 +16,12 @@ async function run() {
     .option("key", {
       type: "string",
       demandOption: true,
-      describe: "Encryption key",
+      describe: "Encryption key (for encode) or key for KID=0 (for decode)",
+    })
+    .option("kid", {
+      type: "number",
+      default: 0,
+      describe: "Key identifier (encode only)",
     })
     .option("compress", {
       type: "boolean",
@@ -30,15 +35,26 @@ async function run() {
   const command = argv._[0];
   const filePath = path.resolve(argv.file as string);
   const key = argv.key as string;
+  const kid = argv.kid as number;
   const compress = argv.compress as boolean;
 
   if (command === "encode") {
     const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-    const encrypted = encryptPayload(data, { key, compress, format: "base64" });
+    const encrypted = encryptPayload(data, {
+      key,
+      kid,
+      compress,
+      format: "base64",
+    });
     console.log(encrypted);
   } else if (command === "decode") {
     const input = fs.readFileSync(filePath, "utf-8");
-    const decrypted = decryptPayload(input, { key, compress });
+
+    const decrypted = decryptPayload(input, {
+      keyMap: { [kid]: key }, // KID lookup
+      compress,
+    });
+
     console.log(JSON.stringify(decrypted, null, 2));
   } else {
     console.error("Unknown command");
