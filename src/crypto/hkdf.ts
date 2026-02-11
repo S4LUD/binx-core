@@ -1,12 +1,7 @@
 // src\crypto\hkdf.ts
 import crypto from "crypto";
 
-export function hkdfDerive(
-  secret: Buffer,
-  salt: Buffer,
-  info: Buffer,
-  length: number
-): Buffer {
+export function hkdfDerive(secret: Buffer, salt: Buffer, info: Buffer, length: number): Buffer {
   const prk = crypto.createHmac("sha256", salt).update(secret).digest();
   let prev = Buffer.alloc(0);
   const out = Buffer.alloc(length);

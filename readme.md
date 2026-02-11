@@ -11,13 +11,29 @@ A compact, deterministic serialization and AES-GCM encryption system designed fo
 
 ---
 
+## Security Docs
+
+- Protocol spec (draft): `docs/protocol.md`
+- Threat model (draft): `docs/threat-model.md`
+- Key lifecycle policy (draft): `docs/key-lifecycle-policy.md`
+- Key rotation playbook (draft): `docs/key-rotation-playbook.md`
+- Compatibility policy (draft): `docs/compatibility-policy.md`
+- Deprecation policy (draft): `docs/deprecation-policy.md`
+- Interoperability guide (draft): `docs/interoperability.md`
+- Release/provenance process (draft): `docs/release-process.md`
+- SLO targets (draft): `docs/slo-targets.md`
+- Branch protection checklist: `docs/branch-protection-required-checks.md`
+- Independent security review plan: `docs/independent-security-review.md`
+- Security disclosure policy: `SECURITY.md`
+
+---
+
 ## Features
 
 ### 1. **Deterministic Serialization**
 
 - Converts JS objects into a stable binary format.
 - Supports:
-
   - `null`
   - `boolean`
   - `number` (int32 + float64)
@@ -27,14 +43,14 @@ A compact, deterministic serialization and AES-GCM encryption system designed fo
   - `Uint8Array`
   - Nested objects and arrays.
 
-- Produces a schema hash (SHA‑256 of `key:type`) to ensure structural consistency.
+- Produces a schema hash (SHA‑256 of `key:typeTag`) to ensure structural consistency.
+- Decoder can optionally accept legacy schema-hash format for compatibility.
 
 ### 2. **Encryption (AES‑256‑GCM)**
 
 - Uses AES‑GCM with 96‑bit IV.
 - HKDF(SHA‑256) used to derive a strong encryption key.
 - Output layout:
-
   - `[flag|version][kid][iv][tag][ciphertext]`
 
 - Supports key rotation via `kid`.
@@ -70,6 +86,8 @@ Encrypts and serializes a payload.
 - `compress?: boolean` — enables compression
 - `format?: "binary" | "base64"` — output format
 - `kid?: number` — key identifier (defaults to 0)
+- `aad?: string | Uint8Array` — optional authenticated associated data (must match on decrypt)
+- `logger?: (event) => void` — optional structured log hook (metadata only, no payload/key data)
 
 **Returns:**
 
@@ -83,6 +101,9 @@ Decrypts and deserializes a payload.
 
 - `keyMap: Record<number, string>` — key lookup table by KID
 - `compress?: boolean` — whether the original payload was compressed
+- `allowLegacySchemaHash?: boolean` — defaults to `true`; set `false` for strict schema-hash enforcement
+- `aad?: string | Uint8Array` — optional authenticated associated data
+- `logger?: (event) => void` — optional structured log hook
 
 **Returns:**
 
@@ -167,8 +188,51 @@ const payload = decryptPayload(encrypted, {
 
 ---
 
+## Security Considerations
+
+Secure usage patterns:
+
+- Store keys in a secret manager or KMS, not in source code.
+- Rotate keys regularly and use KID-based migration windows.
+- Enable strict schema mode in higher-assurance contexts by setting:
+  `allowLegacySchemaHash: false`
+- Bind request/context metadata with `aad` so ciphertext cannot be replayed across contexts.
+- Validate and cap payload sizes before accepting untrusted inputs.
+
+Anti-patterns:
+
+- Reusing shared hardcoded keys across environments.
+- Logging plaintext payloads or raw key material.
+- Disabling integrity checks or bypassing decrypt errors.
+- Treating draft protocol versions as immutable long-term contracts.
+
+---
+
+## Production Controls
+
+- Branch protection enforcement guide:
+  `docs/branch-protection-required-checks.md`
+- External audit execution plan:
+  `docs/independent-security-review.md`
+- Runtime dependency minimality check:
+
+```bash
+npm run deps:check
+```
+
 ## Roadmap
 
 - Streaming encoder/decoder
 - Optional GCM‑SIV mode
 - WASM implementation for browser environments
+- External security review and hardened protocol guidance
+
+---
+
+## Benchmarks
+
+Run baseline local benchmarks:
+
+```bash
+npm run bench
+```

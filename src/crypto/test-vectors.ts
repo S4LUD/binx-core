@@ -15,9 +15,7 @@ export function encryptPayloadForTest(
     throw new Error("Test-vector mode locked.");
 
   const buf = serializePayload(obj);
-  const payloadBuf = options.compress
-    ? deflateSync(Buffer.from(buf))
-    : Buffer.from(buf);
+  const payloadBuf = options.compress ? deflateSync(Buffer.from(buf)) : Buffer.from(buf);
 
   const keyHash = crypto.createHash("sha256").update(options.key).digest();
   const iv = options.iv ?? Buffer.alloc(12, 0);

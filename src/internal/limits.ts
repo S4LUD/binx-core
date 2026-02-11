@@ -1,0 +1,7 @@
+export const MAX_SERIALIZED_PAYLOAD_BYTES = 16 * 1024 * 1024;
+export const MAX_DECRYPTED_PAYLOAD_BYTES = 16 * 1024 * 1024;
+export const MAX_AAD_BYTES = 8 * 1024;
+export const MAX_NESTING_DEPTH = 32;
+export const MAX_STRING_UTF8_BYTES = 1024 * 1024;
+export const MAX_ARRAY_LENGTH = 100000;
+export const MAX_OBJECT_KEYS = 10000;

@@ -1,5 +1,7 @@
 // src\serialization\encode.ts
 import { VERSION } from "../internal/constants";
+import { binxError } from "../internal/errors";
+import { MAX_SERIALIZED_PAYLOAD_BYTES } from "../internal/limits";
 import { encodeUTF8 } from "../internal/utils";
 import { validateSerializable } from "./validator";
 import crypto from "crypto";
@@ -41,7 +43,10 @@ function blob(data: Uint8Array) {
 function encodeTyped(v: unknown) {
   if (v === null) return { tag: 0x01, bytes: [] };
   if (typeof v === "boolean") return { tag: 0x02, bytes: [v ? 1 : 0] };
-  if (typeof v === "number" && Number.isInteger(v)) return i32(v);
+  if (typeof v === "number" && Number.isInteger(v)) {
+    if (v >= -2147483648 && v <= 2147483647) return i32(v);
+    return f64(v);
+  }
   if (typeof v === "bigint") return i64(v);
   if (typeof v === "number") return f64(v);
   if (typeof v === "string") return str(v);
@@ -55,15 +60,18 @@ export function serializePayload(obj: Record<string, unknown>): ArrayBuffer {
 
   const keys = Object.keys(obj);
   const fieldCount = keys.length;
-
-  const schemaStr = keys.map((k) => `${k}:${typeof obj[k]}`).join(",");
-  const schemaHash = crypto.createHash("sha256").update(schemaStr).digest();
+  if (fieldCount > 255) {
+    binxError("BINX_LIMIT_EXCEEDED", "Payload has too many fields; max supported is 255");
+  }
 
   const payloads: { keyBytes: number[]; tag: number; bytes: number[] }[] = [];
-  let size = 2 + schemaHash.length; // version + fieldCount + schemaHash
+  let size = 2; // version + fieldCount
 
   for (const key of keys) {
     const keyBytes = encodeUTF8(key);
+    if (keyBytes.length > 255) {
+      binxError("BINX_LIMIT_EXCEEDED", `Field name too long: "${key}"`);
+    }
     const value = obj[key];
     const { tag, bytes } = encodeTyped(value);
     payloads.push({ keyBytes, tag, bytes });
@@ -71,6 +79,18 @@ export function serializePayload(obj: Record<string, unknown>): ArrayBuffer {
     size += 1 + keyBytes.length;
     size += 1;
     size += 4 + bytes.length;
+  }
+
+  const schemaStr = keys
+    .map((k, i) => `${k}:${payloads[i].tag.toString(16).padStart(2, "0")}`)
+    .join(",");
+  const schemaHash = crypto.createHash("sha256").update(schemaStr).digest();
+  size += schemaHash.length;
+  if (size > MAX_SERIALIZED_PAYLOAD_BYTES) {
+    binxError(
+      "BINX_LIMIT_EXCEEDED",
+      `Serialized payload exceeds ${MAX_SERIALIZED_PAYLOAD_BYTES} bytes`
+    );
   }
 
   const buf = new ArrayBuffer(size);
